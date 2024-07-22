@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"kedaplay/command"
-	"kedaplay/service"
-	"kedaplay/signalx"
 	"log"
 	"log/slog"
 	"os"
+
+	"kedaplay/command"
+	"kedaplay/service"
+	"kedaplay/signalx"
 )
 
 func initLogger() *slog.Logger {
@@ -26,7 +27,7 @@ func main() {
 	defer cancel()
 
 	ctx := context.WithValue(nctx, service.SLoggerContextKey, logger)
-	runner := command.NewWorkerCmd()
+	runner := command.NewServerCmd()
 	runner.Run(ctx, os.Args, logger)
 
 	s := signalx.CaughtSignal(nctx)
