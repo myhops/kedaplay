@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kpserver
+  name: kpserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kpserver
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: kpserver
+    spec:
+      containers:
+      - image: docker.io/peterzandbergen/kedaplay-dfeb31b3f8f4a1292165d54b384e8b17:latest
+        name: worker
+        args:
+          - server
+        ports:
+          - name: http
+            containerPort: 8080
+            protocol: TCP
+        resources: {}

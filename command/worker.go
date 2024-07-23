@@ -10,6 +10,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -18,8 +19,8 @@ type workerCmd struct {
 }
 
 type WorkerOptions struct {
-	Resource string
-	Sleep    int
+	Resource     string
+	Sleep        int
 }
 
 var (
@@ -27,9 +28,7 @@ var (
 )
 
 func NewWorkerCmd() *workerCmd {
-	return &workerCmd{
-
-	}
+	return &workerCmd{}
 }
 
 func (c *workerCmd) processTask(ctx context.Context, opts *WorkerOptions) error {
@@ -85,18 +84,23 @@ func (c *workerCmd) processPendingTasks(ctx context.Context, opts *WorkerOptions
 }
 
 func (c *workerCmd) Run(ctx context.Context, args []string, logger *slog.Logger) error {
+	resource := "http://localhost:8080/tasks/first"
+	if r := os.Getenv("KDPW_RESOURCE"); r != "" {
+		resource = r
+	}
+	
 	log.Print("starting run")
 	opts := &WorkerOptions{
-		Resource: "http://localhost:8080/tasks/first",
+		Resource: resource,
 		Sleep:    5,
 	}
-	c.logger = logger
+	c.logger = logger.With(slog.String("component", "worker"))
+	c.logger.Info("starting work", slog.String("resource", opts.Resource), slog.Int("sleep", opts.Sleep))
 
 	for {
 		err := c.processPendingTasks(ctx, opts)
 		if err != nil {
 			c.logger.Error("processPendingTask returned error", slog.String("error", err.Error()))
-			// return fmt.Errorf("processPendingTask error: %w", err)
 		}
 		// All task processed or error.
 		sd := time.Second * time.Duration(opts.Sleep)
@@ -109,5 +113,4 @@ func (c *workerCmd) Run(ctx context.Context, args []string, logger *slog.Logger)
 			log.Printf("looking for new tasks")
 		}
 	}
-
 }

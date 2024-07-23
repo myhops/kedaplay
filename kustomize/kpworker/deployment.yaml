@@ -20,4 +20,7 @@ spec:
         name: worker
         args:
           - worker
+        env:
+          - name: KDPW_RESOURCE
+            value: "http://kpserver:8080/tasks/first"
         resources: {}
