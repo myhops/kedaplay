@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kpworker
+  name: kpworker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kpworker
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: kpworker
+    spec:
+      containers:
+      - image: docker.io/peterzandbergen/kedaplay-dfeb31b3f8f4a1292165d54b384e8b17:latest
+        name: worker
+        args:
+          - worker
+        resources: {}

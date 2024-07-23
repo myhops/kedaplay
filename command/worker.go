@@ -95,9 +95,10 @@ func (c *workerCmd) Run(ctx context.Context, args []string, logger *slog.Logger)
 	for {
 		err := c.processPendingTasks(ctx, opts)
 		if err != nil {
-			return fmt.Errorf("processPendingTask error: %w", err)
+			c.logger.Error("processPendingTask returned error", slog.String("error", err.Error()))
+			// return fmt.Errorf("processPendingTask error: %w", err)
 		}
-		// All task processed.
+		// All task processed or error.
 		sd := time.Second * time.Duration(opts.Sleep)
 		log.Printf("all done, sleeping for %s", sd.String())
 		select {
