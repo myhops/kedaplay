@@ -1,0 +1,23 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: kpworker
+  labels:
+    app: kpworker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kpworker
+    envSourceContainerName: worker
+  maxReplicaCount: 10
+  pollingInterval: 1
+  cooldownPeriod: 300
+  triggers:
+    - name: too-many-tasks
+      type: metrics-api
+      metadata:
+        targetValue: "5"
+        activationTargetValue: "0"
+        url: "http://kpserver.default.svc.cluster.local:8080/tasks"
+        valueLocation: "count"

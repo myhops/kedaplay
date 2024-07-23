@@ -58,6 +58,7 @@ func (c *workerCmd) processTask(ctx context.Context, opts *WorkerOptions) error 
 		return fmt.Errorf("error unmarshalling ")
 	}
 	// wait for the processing time
+	c.logger.Info("starting task", slog.String("task", task.Name), slog.Int("processingTime", task.ProcessingTime))
 	select {
 	case <-time.After(time.Duration(task.ProcessingTime * int(time.Second))):
 		log.Printf("processed task %s, time: %ds", task.Name, task.ProcessingTime)
