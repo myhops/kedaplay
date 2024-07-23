@@ -26,6 +26,12 @@ func (s *State) RemoveFirst() *Task {
 	return removed
 }
 
+func (s *State) GetTasks() []*Task {
+	res := make([]*Task, len(s.Tasks))
+	copy(res, s.Tasks)
+	return res
+}
+
 func (s *State) Append(t *Task) {
 	s.Tasks	= append(s.Tasks, t)
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"syscall"
 
 	"kedaplay/command"
 	"kedaplay/service"
@@ -26,7 +27,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	default:
 		return errors.New("bad command")
 	}
-	return cmd.Run(ctx, args, logger)
+	return cmd.Run(ctx, args[1:], logger)
 }
 
 func initLogger() *slog.Logger {
@@ -41,7 +42,7 @@ func main() {
 	// Setup slog
 	logger := initLogger()
 
-	nctx, cancel := signalx.NotifyContext(context.Background())
+	nctx, cancel := signalx.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
 	ctx := context.WithValue(nctx, service.SLoggerContextKey, logger)
@@ -51,6 +52,9 @@ func main() {
 
 	s := signalx.CaughtSignal(nctx)
 	if s != nil {
-		log.Printf("caught signal: %s", s.String())
+		logger.Info("caught signal", slog.String("signal", s.String()))
+	} else {
+		logger.Info("caught signal", slog.String("detail", "signal is nil"))
 	}
+	log.Print("stopped")
 }

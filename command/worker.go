@@ -14,6 +14,7 @@ import (
 )
 
 type workerCmd struct {
+	logger *slog.Logger
 }
 
 type WorkerOptions struct {
@@ -26,19 +27,24 @@ var (
 )
 
 func NewWorkerCmd() *workerCmd {
-	return &workerCmd{}
+	return &workerCmd{
+
+	}
 }
 
 func (c *workerCmd) processTask(ctx context.Context, opts *WorkerOptions) error {
 	log.Print("starting process task")
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, opts.Resource, nil)
+	// req, err := http.NewRequestWithContext(ctx, http.MethodDelete, opts.Resource, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, opts.Resource, nil)
 	if err != nil {
 		return fmt.Errorf("error creating http request: %w", err)
 	}
+	c.logger.Info("issuing request")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error issuing request: %w", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
@@ -72,6 +78,7 @@ func (c *workerCmd) processPendingTasks(ctx context.Context, opts *WorkerOptions
 		}
 	}
 	if !errors.Is(err, ErrNotFound) {
+		c.logger.Info("")
 		return err
 	}
 	return nil
@@ -83,11 +90,12 @@ func (c *workerCmd) Run(ctx context.Context, args []string, logger *slog.Logger)
 		Resource: "http://localhost:8080/tasks/first",
 		Sleep:    5,
 	}
+	c.logger = logger
 
 	for {
 		err := c.processPendingTasks(ctx, opts)
 		if err != nil {
-			return err
+			return fmt.Errorf("processPendingTask error: %w", err)
 		}
 		// All task processed.
 		sd := time.Second * time.Duration(opts.Sleep)

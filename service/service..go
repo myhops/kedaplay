@@ -9,8 +9,8 @@ import (
 	"kedaplay"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
-
 	// "kedaplay/json"
 )
 
@@ -33,9 +33,16 @@ const (
 	allTasks
 )
 
+const (
+	errorJSON = iota
+	errorText
+)
+
 type Service struct {
-	state *kedaplay.State
-	mux   *http.ServeMux
+	state      *kedaplay.State
+	mux        *http.ServeMux
+	mutex      sync.Mutex
+	writeError func(w http.ResponseWriter, status int, err error)
 }
 
 var (
@@ -52,6 +59,7 @@ func NewService() *Service {
 		state: &kedaplay.State{
 			Tasks: []*kedaplay.Task{},
 		},
+		writeError: writeErrorJSON,
 	}
 	svc.routes("")
 	return svc
@@ -66,7 +74,21 @@ type addRequest struct {
 	kedaplay.Task
 }
 
-func writeError(w http.ResponseWriter, status int, err error) {
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+func writeErrorJSON(w http.ResponseWriter, status int, err error) {
+	eo := errorResponse{
+		Error: err.Error(),
+	}
+	b, _ := json.Marshal(eo)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(b)
+}
+
+func writeErrorText(w http.ResponseWriter, status int, err error) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(status)
 	fmt.Fprintf(w, "Error: %s", err.Error())
@@ -85,7 +107,6 @@ func (s *Service) handleAppendTask() http.HandlerFunc {
 		logger.Info("handleAppendTask")
 
 		// Get the payload from the body.
-		defer r.Body.Close()
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			// Report error.
@@ -96,11 +117,15 @@ func (s *Service) handleAppendTask() http.HandlerFunc {
 		err = json.Unmarshal(b, &req)
 		if err != nil || len(req.Name) == 0 {
 			// Report error.
-			writeError(w, http.StatusBadRequest, fmt.Errorf("cannot unmarshal add task body: %w", err))
+			s.writeError(w, http.StatusBadRequest, fmt.Errorf("cannot unmarshal add task body: %w", err))
 			return
 		}
 		// Add to the state.
-		s.state.AddTask(&req.Task)
+		func() {
+			s.mutex.Lock()
+			defer s.mutex.Unlock()
+			s.state.AddTask(&req.Task)
+		}()
 		// Return with success.
 		w.WriteHeader(http.StatusOK)
 	}
@@ -120,16 +145,18 @@ func (s *Service) handleRemoveTask(which int) http.HandlerFunc {
 			t, err = s.removeFirstTask()
 		default:
 		}
-		// Return with success.
 		if err != nil {
-			writeError(w, http.StatusNotFound, err)
+			s.writeError(w, http.StatusNotFound, err)
 			return
 		}
+		// Return with success.
 		writeJSON(w, t)
 	}
 }
 
 func (s *Service) removeFirstTask() (*kedaplay.Task, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	t := s.state.RemoveFirst()
 	if t == nil {
 		return nil, ErrNoTasks
@@ -140,12 +167,19 @@ func (s *Service) removeFirstTask() (*kedaplay.Task, error) {
 func (s *Service) handleGetTasks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var logger = getLogger(r.Context())
+
 		logger.Info("handleGetTasks")
 
 		// Get the tasks.
+		var tasks []*kedaplay.Task
+		func() {
+			s.mutex.Lock()
+			defer s.mutex.Unlock()
+			tasks = s.state.GetTasks()
+		}()
 		st := status{
-			Count: len(s.state.Tasks),
-			Tasks: s.state.Tasks,
+			Count: len(tasks),
+			Tasks: tasks,
 		}
 		writeJSON(w, st)
 	}

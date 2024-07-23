@@ -5,7 +5,6 @@ import (
 	"kedaplay/command"
 	"kedaplay/service"
 	"kedaplay/signalx"
-	"log"
 	"log/slog"
 	"os"
 )
@@ -31,6 +30,6 @@ func main() {
 
 	s := signalx.CaughtSignal(nctx)
 	if s != nil {
-		log.Printf("caught signal: %s", s.String())
+		logger.Info("caught signal", slog.String("signal", s.String()))
 	}
 }
