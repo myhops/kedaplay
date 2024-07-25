@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"kedaplay/command"
-	"kedaplay/service"
 	"kedaplay/signalx"
 	"log/slog"
 	"os"
@@ -24,7 +23,7 @@ func main() {
 	nctx, cancel := signalx.NotifyContext(context.Background())
 	defer cancel()
 
-	ctx := context.WithValue(nctx, service.SLoggerContextKey, logger)
+	ctx := nctx
 	runner := command.NewWorkerCmd()
 	runner.Run(ctx, os.Args, logger)
 

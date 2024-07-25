@@ -7,14 +7,20 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"kedaplay/service"
 )
 
-type serverCmd struct{}
+type serverCmd struct {
+	listenAddress string
+	logger        *slog.Logger
+}
 
-type ServerOptions struct{}
+var getenv = func(name string) string {
+	return os.Getenv(name)
+}
 
 func (c *serverCmd) Run(ctx context.Context, args []string, logger *slog.Logger) error {
 
@@ -22,15 +28,28 @@ func (c *serverCmd) Run(ctx context.Context, args []string, logger *slog.Logger)
 		return ctx
 	}
 
+	var port = "8080"
+	if p := getenv("PORT"); p != "" {
+		port = p
+	}
+	port = ":" + port
+
+	c.logger = logger.With(slog.String("module", "server"), "listenAddress", port)
+
+	serviceConfig := service.Config{
+		BaseUrl:     "",
+		ErrorResponseFormat: service.ErrorResponseJSON,
+	}
+
 	// Create the server
 	server := http.Server{
-		Handler:           service.LogRequestMiddleware(service.NewService().ServeHTTP, logger),
-		Addr:              ":8080",
+		Handler:           service.LogRequestMiddleware(service.NewService(&serviceConfig, c.logger).ServeHTTP, logger),
+		Addr:              ":" + port,
 		ReadHeaderTimeout: 10 * time.Second,
 		BaseContext:       baseContext,
 	}
 	go server.ListenAndServe()
-	log.Print("listening on :8080")
+	c.logger.Info("listen started", slog.Duration("readHeaderTimeout", server.ReadHeaderTimeout))
 
 	<-ctx.Done()
 	log.Print("Done closed")
@@ -50,5 +69,6 @@ func (c *serverCmd) Run(ctx context.Context, args []string, logger *slog.Logger)
 }
 
 func NewServerCmd() *serverCmd {
-	return &serverCmd{}
+	cmd := &serverCmd{}
+	return cmd
 }

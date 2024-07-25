@@ -1,7 +1,7 @@
 package service
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,26 +16,10 @@ import (
 
 type contextKey string
 
-// SLogger
-var SLoggerContextKey contextKey = contextKey("sLoggerKey")
-
-func getLogger(ctx context.Context) *slog.Logger {
-	sl, ok := ctx.Value(SLoggerContextKey).(*slog.Logger)
-	if !ok {
-		return nil
-	}
-	return sl
-}
-
 const (
 	firstTask = iota
 	lastTask
 	allTasks
-)
-
-const (
-	errorJSON = iota
-	errorText
 )
 
 type Service struct {
@@ -43,25 +27,44 @@ type Service struct {
 	mux        *http.ServeMux
 	mutex      sync.Mutex
 	writeError func(w http.ResponseWriter, status int, err error)
+	logger     *slog.Logger
 }
 
 var (
 	ErrNoTasks = errors.New("no tasks")
 )
 
+type errorResponseFormat int
+
+const (
+	ErrorResponseJSON = iota
+	ErrorResponseText
+)
+
+type Config struct {
+	BaseUrl             string
+	ErrorResponseFormat errorResponseFormat
+}
+
 func encodeJSON(w io.Writer, obj any) {
 	b, _ := json.Marshal(obj)
 	w.Write(b)
 }
 
-func NewService() *Service {
+func NewService(cfg *Config, logger *slog.Logger) *Service {
 	svc := &Service{
 		state: &kedaplay.State{
 			Tasks: []*kedaplay.Task{},
 		},
-		writeError: writeErrorJSON,
+		logger: logger.With(slog.String("package", "service")),
 	}
-	svc.routes("")
+	switch cfg.ErrorResponseFormat {
+	case ErrorResponseJSON:
+		svc.writeError = writeErrorJSON
+	case ErrorResponseText:
+		svc.writeError = writeErrorText
+	}
+	svc.routes(cfg.BaseUrl)
 	return svc
 }
 
@@ -103,8 +106,7 @@ func writeJSON(w http.ResponseWriter, obj any) {
 
 func (s *Service) handleAppendTask() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var logger = getLogger(r.Context())
-		logger.Info("handleAppendTask")
+		s.logger.Info("handleAppendTask")
 
 		// Get the payload from the body.
 		b, err := io.ReadAll(r.Body)
@@ -136,8 +138,7 @@ func (s *Service) handleRemoveTask(which int) http.HandlerFunc {
 		var err error
 		var t *kedaplay.Task
 
-		var logger = getLogger(r.Context())
-		logger.Info("handleRemoveTask")
+		s.logger.Info("handleRemoveTask")
 
 		// Remove the task.
 		switch which {
@@ -166,7 +167,7 @@ func (s *Service) removeFirstTask() (*kedaplay.Task, error) {
 
 func (s *Service) handleGetTasks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var logger = getLogger(r.Context())
+		var logger = s.logger
 
 		logger.Info("handleGetTasks")
 
@@ -185,15 +186,24 @@ func (s *Service) handleGetTasks() http.HandlerFunc {
 	}
 }
 
+func getPattern(method string, baseUrl string, path string) string {
+	var w bytes.Buffer
+	if method != "" {
+		fmt.Fprintf(&w, "%s ", method)
+	}
+	fmt.Fprintf(&w, "%s%s", baseUrl, path)
+	return w.String()
+}
+
 func (s *Service) routes(base string) {
 	if s.mux != nil {
 		return
 	}
 	s.mux = http.NewServeMux()
-	s.mux.HandleFunc("POST /tasks", s.handleAppendTask())
-	s.mux.HandleFunc("GET /tasks", s.handleGetTasks())
-	s.mux.HandleFunc("DELETE /tasks/first", s.handleRemoveTask(firstTask))
-	s.mux.HandleFunc("DELETE /tasks/all", s.handleRemoveTask(allTasks))
+	s.mux.HandleFunc(getPattern("POST", base, "/tasks"), s.handleAppendTask())
+	s.mux.HandleFunc(getPattern("GET", base, "/tasks"), s.handleGetTasks())
+	s.mux.HandleFunc(getPattern("DELETE", base, "/tasks/first"), s.handleRemoveTask(firstTask))
+	s.mux.HandleFunc(getPattern("DELETE", base, "/tasks/all"), s.handleRemoveTask(allTasks))
 	s.mux.HandleFunc("/*", http.NotFound)
 }
 

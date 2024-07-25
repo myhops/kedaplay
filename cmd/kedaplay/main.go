@@ -9,9 +9,11 @@ import (
 	"syscall"
 
 	"kedaplay/command"
-	"kedaplay/service"
 	"kedaplay/signalx"
 )
+
+type options struct {
+}
 
 func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	var cmd command.Cmd
@@ -45,7 +47,7 @@ func main() {
 	nctx, cancel := signalx.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
-	ctx := context.WithValue(nctx, service.SLoggerContextKey, logger)
+	ctx := nctx
 	if err := run(ctx, os.Args, logger); err != nil {
 		log.Fatalf("run returned error: %s", err.Error())
 	}

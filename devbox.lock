@@ -48,6 +48,54 @@
           "store_path": "/nix/store/5klg0yk9h2agipzk9ahyic9vbhag8lvm-ko-0.15.4"
         }
       }
+    },
+    "mage@latest": {
+      "last_modified": "2024-07-07T07:43:47Z",
+      "resolved": "github:NixOS/nixpkgs/b60793b86201040d9dee019a05089a9150d08b5b#mage",
+      "source": "devbox-search",
+      "version": "1.15.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/bwiixaazhzbnf4048ahgsarm03pxb176-mage-1.15.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/bwiixaazhzbnf4048ahgsarm03pxb176-mage-1.15.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/v2mckbrzvw7ghkyybnzdhivlpdz40vzx-mage-1.15.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/v2mckbrzvw7ghkyybnzdhivlpdz40vzx-mage-1.15.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/zp369ky28i8pfq94fr0wxi0cmnr8np8s-mage-1.15.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/zp369ky28i8pfq94fr0wxi0cmnr8np8s-mage-1.15.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ypz0gfbvnbbia7ix95m82ncpaaxwqjid-mage-1.15.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ypz0gfbvnbbia7ix95m82ncpaaxwqjid-mage-1.15.0"
+        }
+      }
     }
   }
 }

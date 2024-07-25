@@ -1,0 +1,11 @@
+builds:
+  - id: kedaplay
+    dir: .
+    main: ./cmd/kedaplay
+  - id: server
+    dir: .
+    main: ./cmd/server
+  - id: worker
+    dir: .
+    main: ./cmd/worker
+        
