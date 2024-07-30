@@ -12,45 +12,24 @@ import (
 	"kedaplay/signalx"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 var defaultLogger *slog.Logger
 
-func addLogFlags(fs *pflag.FlagSet) {
-	fs.String("loglevel", "info", "log level")
-	fs.String("logformat", "json", "log format")
-}
-
 func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "kedaplay [ server | worker ]",
+		Use: "kdp [ server | worker ]",
 		Run: func(cmd *cobra.Command, args []string) {
 			initDefaultLogger()
 			cmd.Usage()
 		},
 		TraverseChildren: true,
 	}
-	setRootCmdFlags(cmd.Flags())
+	cmd.Flags().String("loglevel", "info", "log level")
+	cmd.Flags().String("logformat", "json", "log format")
+
 	return cmd
-}
-
-func setRootCmdFlags(fs *pflag.FlagSet) {
-	addLogFlags(fs)
-}
-
-func setServerCmdFlags(fs *pflag.FlagSet) {
-	addLogFlags(fs)
-	fs.StringP("listen-address", "A", "", "Listen address. Use --port if you want to listen on all interfaces.")
-	fs.UintP("port", "p", 8080, "Listen port.")
-	fs.StringP("base-path", "B", "", "base prefix for url path.")
-}
-
-func setWorkerCmdFlags(fs *pflag.FlagSet) {
-	addLogFlags(fs)
-	fs.StringP("resource", "R", "http://localhost:8080/tasks/first", "Resource to pull tasks from")
-	fs.UintP("sleep", "S", 2, "Sleep interval")
 }
 
 func runServercmd(ccmd *cobra.Command, args []string) {
@@ -79,10 +58,15 @@ func runWorkercmd(ccmd *cobra.Command, args []string) {
 
 func newServerCmd(parent *cobra.Command) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "server",
-		Run: runServercmd,
+		Use:              "server",
+		Run:              runServercmd,
+		TraverseChildren: true,
 	}
-	setServerCmdFlags(cmd.Flags())
+	cmd.Flags().StringP("listen-address", "A", "", "Listen address. Use --port if you want to listen on all interfaces.")
+	cmd.Flags().UintP("port", "p", 8080, "Listen port.")
+	cmd.Flags().StringP("base-path", "B", "", "base prefix for url path.")
+
+	cmd.Flags().AddFlagSet(parent.Flags())
 	parent.AddCommand(cmd)
 	return cmd
 }
@@ -91,19 +75,30 @@ func newWorkerCmd(parent *cobra.Command) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "worker",
 		Run: runWorkercmd,
+		TraverseChildren: true,
 	}
-	setWorkerCmdFlags(cmd.Flags())
+	cmd.Flags().StringP("resource", "R", "http://localhost:8080/tasks/first", "Resource to pull tasks from")
+	cmd.Flags().UintP("sleep", "S", 2, "Sleep interval")
+	cmd.Flags().AddFlagSet(parent.Flags())
 	parent.AddCommand(cmd)
 	return cmd
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err.Error())
+	}
 }
 
 func initCobra() *cobra.Command {
 	rootCmd := newRootCmd()
 	serverCmd := newServerCmd(rootCmd)
 	workerCmd := newWorkerCmd(rootCmd)
-	viper.BindPFlags(rootCmd.Flags())
-	viper.BindPFlags(serverCmd.Flags())
-	viper.BindPFlags(workerCmd.Flags())
+
+	must(viper.BindPFlags(rootCmd.Flags()))
+	must(viper.BindPFlags(serverCmd.Flags()))
+	must(viper.BindPFlags(workerCmd.Flags()))
+	viper.AutomaticEnv()
 	return rootCmd
 }
 
@@ -126,7 +121,8 @@ func initDefaultLogger() {
 	}
 
 	var lh slog.Handler
-	switch strings.ToLower(viper.GetString("logformat")) {
+	lf := strings.ToLower(viper.GetString("logformat"))
+	switch lf {
 	case "text":
 		lh = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: ll})
 	case "json":

@@ -4,7 +4,7 @@ import "testing"
 
 func TestServer(t *testing.T) {
 	args := []string{
-		"kedaplay", "server",
+		"kedaplay", "server", "--logformat=text", "--port=10000",
 	}
 	run(args)
 }
