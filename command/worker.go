@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"kedaplay"
 	"log"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/myhops/kedaplay"
 )
 
 type workerCmd struct {

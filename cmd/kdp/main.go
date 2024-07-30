@@ -8,8 +8,8 @@ import (
 	"strings"
 	"syscall"
 
-	"kedaplay/command"
-	"kedaplay/signalx"
+	"github.com/myhops/kedaplay/command"
+	"github.com/myhops/kedaplay/signalx"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

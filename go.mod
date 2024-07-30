@@ -1,4 +1,4 @@
-module kedaplay
+module github.com/myhops/kedaplay
 
 go 1.22.5
 

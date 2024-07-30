@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"kedaplay"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/myhops/kedaplay"
 )
 
 func TestEncode(t *testing.T) {

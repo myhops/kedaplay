@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"kedaplay"
 	"log/slog"
 	"net/http"
 	"sync"
 	"time"
-	// "kedaplay/json"
+
+	"github.com/myhops/kedaplay"
 )
 
 type contextKey string

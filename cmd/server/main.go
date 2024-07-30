@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	"kedaplay/signalx"
+	"github.com/myhops/kedaplay/signalx"
 )
 
 func initLogger() *slog.Logger {

@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"kedaplay/service"
+	"github.com/myhops/kedaplay/service"
 )
 
 type ServerConfig struct {

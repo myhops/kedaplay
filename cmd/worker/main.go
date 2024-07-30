@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"kedaplay/command"
-	"kedaplay/signalx"
 	"log/slog"
 	"os"
+
+	"github.com/myhops/kedaplay/command"
+	"github.com/myhops/kedaplay/signalx"
 )
 
 func initLogger() *slog.Logger {
