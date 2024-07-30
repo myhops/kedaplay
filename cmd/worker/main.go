@@ -24,8 +24,8 @@ func main() {
 	defer cancel()
 
 	ctx := nctx
-	runner := command.NewWorkerCmd()
-	runner.Run(ctx, os.Args, logger)
+	runner := command.NewWorkerCmd(&command.WorkerConfig{})
+	runner.Run(ctx)
 
 	s := signalx.CaughtSignal(nctx)
 	if s != nil {

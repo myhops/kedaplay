@@ -106,12 +106,14 @@ func writeJSON(w http.ResponseWriter, obj any) {
 
 func (s *Service) handleAppendTask() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s.logger.Info("handleAppendTask")
+		logger := s.logger.With(slog.String("handler", "handleAppendTask"))
+		logger.Info("handler called")
 
 		// Get the payload from the body.
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			// Report error.
+			logger.Info("error reading body", slog.String("error", err.Error()))
 			return
 		}
 
@@ -138,20 +140,25 @@ func (s *Service) handleRemoveTask(which int) http.HandlerFunc {
 		var err error
 		var t *kedaplay.Task
 
-		s.logger.Info("handleRemoveTask")
+		logger := s.logger.With(slog.String("handler", "handleRemoveTask"))
+
+		logger.Info("handler called")
 
 		// Remove the task.
 		switch which {
 		case firstTask:
+			logger.Info("removing first task")
 			t, err = s.removeFirstTask()
 		default:
 		}
 		if err != nil {
 			s.writeError(w, http.StatusNotFound, err)
+			logger.Info("error removing task", slog.String("error", err.Error()))
 			return
 		}
 		// Return with success.
 		writeJSON(w, t)
+		logger.Info("removed task", slog.String("task.name", t.Name))
 	}
 }
 

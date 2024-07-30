@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 
-	"kedaplay/command"
 	"kedaplay/signalx"
 )
 
@@ -18,16 +17,17 @@ func initLogger() *slog.Logger {
 	return logger
 }
 
+
 func main() {
 	// Setup slog
-	logger := initLogger()
+	// logger := initLogger()
 
 	nctx, cancel := signalx.NotifyContext(context.Background())
 	defer cancel()
 
-	ctx := nctx
-	runner := command.NewServerCmd()
-	runner.Run(ctx, os.Args, logger)
+	// ctx := nctx
+	// runner := command.NewServerCmd()
+	// runner.Run(ctx, os.Args, logger)
 
 	s := signalx.CaughtSignal(nctx)
 	if s != nil {

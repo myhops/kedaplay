@@ -10,52 +10,66 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 )
 
 type workerCmd struct {
-	logger *slog.Logger
+	logger   *slog.Logger
+	resource string
+	sleep    int
 }
 
-type WorkerOptions struct {
-	Resource     string
-	Sleep        int
+type WorkerConfig struct {
+	Resource string
+	Sleep    int
+	Logger   *slog.Logger
 }
 
 var (
 	ErrNotFound = errors.New("no tasks found")
 )
 
-func NewWorkerCmd() *workerCmd {
-	return &workerCmd{}
+func NewWorkerCmd(cfg *WorkerConfig) *workerCmd {
+	cmd := &workerCmd{}
+	cmd.resource = cfg.Resource
+	cmd.logger = cfg.Logger.With(slog.String("resource", cfg.Resource))
+	cmd.sleep = cfg.Sleep
+	return cmd
 }
 
-func (c *workerCmd) processTask(ctx context.Context, opts *WorkerOptions) error {
-	log.Print("starting process task")
+func (c *workerCmd) getTask() (*kedaplay.Task, error) {
+	c.logger.Info("starting process task")
 	// req, err := http.NewRequestWithContext(ctx, http.MethodDelete, opts.Resource, nil)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, opts.Resource, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, c.resource, nil)
 	if err != nil {
-		return fmt.Errorf("error creating http request: %w", err)
+		return nil, fmt.Errorf("error creating http request: %w", err)
 	}
 	c.logger.Info("issuing request")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error issuing request: %w", err)
+		return nil, fmt.Errorf("error issuing request: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
-		return ErrNotFound
+		return nil, ErrNotFound
 	}
 	// Unmarshal the task.
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("error reading body: %w", err)
+		return nil, fmt.Errorf("error reading body: %w", err)
 	}
 	var task kedaplay.Task
 	err = json.Unmarshal(body, &task)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling ")
+		return nil, fmt.Errorf("error unmarshalling ")
+	}
+	return &task, nil
+}
+
+func (c *workerCmd) processTask(ctx context.Context) error {
+	task, err := c.getTask()
+	if err != nil {
+		return err
 	}
 	// wait for the processing time
 	c.logger.Info("starting task", slog.String("task", task.Name), slog.Int("processingTime", task.ProcessingTime))
@@ -69,49 +83,38 @@ func (c *workerCmd) processTask(ctx context.Context, opts *WorkerOptions) error 
 	return nil
 }
 
-func (c *workerCmd) processPendingTasks(ctx context.Context, opts *WorkerOptions) error {
+func (c *workerCmd) processPendingTasks(ctx context.Context) error {
 	var err error
 	for {
-		err = c.processTask(ctx, opts)
+		err = c.processTask(ctx)
 		if err != nil {
 			break
 		}
 	}
 	if !errors.Is(err, ErrNotFound) {
-		c.logger.Info("")
+		c.logger.Info("error processing task", slog.String("error", err.Error()))
 		return err
 	}
 	return nil
 }
 
-func (c *workerCmd) Run(ctx context.Context, args []string, logger *slog.Logger) error {
-	resource := "http://localhost:8080/tasks/first"
-	if r := os.Getenv("KDPW_RESOURCE"); r != "" {
-		resource = r
-	}
-	
-	log.Print("starting run")
-	opts := &WorkerOptions{
-		Resource: resource,
-		Sleep:    5,
-	}
-	c.logger = logger.With(slog.String("component", "worker"))
-	c.logger.Info("starting work", slog.String("resource", opts.Resource), slog.Int("sleep", opts.Sleep))
+func (c *workerCmd) Run(ctx context.Context) error {
+	c.logger.Info("starting work", slog.String("resource", c.resource), slog.Int("sleep", c.sleep))
 
 	for {
-		err := c.processPendingTasks(ctx, opts)
+		err := c.processPendingTasks(ctx)
 		if err != nil {
 			c.logger.Error("processPendingTask returned error", slog.String("error", err.Error()))
 		}
 		// All task processed or error.
-		sd := time.Second * time.Duration(opts.Sleep)
-		log.Printf("all done, sleeping for %s", sd.String())
+		sd := time.Second * time.Duration(c.sleep)
+		c.logger.Info("all done", slog.Duration("sleep_duration", sd))
 		select {
 		case <-ctx.Done():
-			log.Printf("canceled, err: %s", ctx.Err().Error())
+			c.logger.Info("canceled", slog.String("error", ctx.Err().Error()))
 			return nil
 		case <-time.After(sd):
-			log.Printf("looking for new tasks")
+			c.logger.Info("looking for new tasks")
 		}
 	}
 }

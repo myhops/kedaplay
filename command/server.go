@@ -7,44 +7,48 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"time"
 
 	"kedaplay/service"
 )
 
+type ServerConfig struct {
+	// The port number to listen on.
+	Port int
+	// The listen address to listen on.
+	// Has precedence over Port.
+	ListenAddress string
+	// BasePath sets the prefix for the paths of the service.
+	BasePath string
+	// The logger.
+	// It not set, it tries to get the default slog logger.
+	// It it cannot find a default logger, it will log to null.
+	Logger *slog.Logger
+}
+
 type serverCmd struct {
 	listenAddress string
+	baseURL       string
 	logger        *slog.Logger
 }
 
-var getenv = func(name string) string {
-	return os.Getenv(name)
-}
-
-func (c *serverCmd) Run(ctx context.Context, args []string, logger *slog.Logger) error {
+func (c *serverCmd) Run(ctx context.Context) error {
 
 	baseContext := func(_ net.Listener) context.Context {
 		return ctx
 	}
 
-	var port = "8080"
-	if p := getenv("PORT"); p != "" {
-		port = p
-	}
-	port = ":" + port
-
-	c.logger = logger.With(slog.String("module", "server"), "listenAddress", port)
+	c.logger = c.logger.With(slog.String("listenAddress", c.listenAddress))
 
 	serviceConfig := service.Config{
-		BaseUrl:     "",
+		BaseUrl:             c.baseURL,
 		ErrorResponseFormat: service.ErrorResponseJSON,
 	}
 
 	// Create the server
 	server := http.Server{
-		Handler:           service.LogRequestMiddleware(service.NewService(&serviceConfig, c.logger).ServeHTTP, logger),
-		Addr:              ":" + port,
+		Handler:           service.LogRequestMiddleware(service.NewService(&serviceConfig, c.logger).ServeHTTP, c.logger),
+		Addr:              c.listenAddress,
 		ReadHeaderTimeout: 10 * time.Second,
 		BaseContext:       baseContext,
 	}
@@ -68,7 +72,28 @@ func (c *serverCmd) Run(ctx context.Context, args []string, logger *slog.Logger)
 	return nil
 }
 
-func NewServerCmd() *serverCmd {
+func (c *serverCmd) setListenAddress(cfg *ServerConfig) {
+	if cfg.ListenAddress != "" {
+		c.listenAddress = cfg.ListenAddress
+		return
+	}
+	if cfg.Port != 0 {
+		c.listenAddress = fmt.Sprintf(":%d", cfg.Port)
+		return
+	}
+}
+
+func (s *serverCmd) setLogger(cfg *ServerConfig) {
+	if cfg.Logger == nil {
+		s.logger = slog.Default().With(slog.String("command", "server"))
+		return
+	}
+	s.logger = cfg.Logger
+}
+
+func NewServerCmd(cfg *ServerConfig) *serverCmd {
 	cmd := &serverCmd{}
+	cmd.setListenAddress(cfg)
+	cmd.setLogger(cfg)
 	return cmd
 }
